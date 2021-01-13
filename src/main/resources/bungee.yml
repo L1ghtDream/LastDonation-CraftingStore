@@ -1,0 +1,3 @@
+name: LastDonation
+version: ${project.version}
+main: me.lightdream.lastdonation.LastDonation
