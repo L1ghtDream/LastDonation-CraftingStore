@@ -3,93 +3,84 @@ package me.lightdream.lastdonation;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import net.md_5.bungee.api.ServerPing;
-import net.md_5.bungee.api.event.ProxyPingEvent;
+import lombok.Getter;
+import lombok.Setter;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.event.EventHandler;
 
-
-import java.io.*;
-import java.net.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
+@Getter
+@Setter
 public final class LastDonation extends Plugin implements Listener {
 
-    private static LastDonation plugin;
-
-    private static String MOTD;
-
-    private static String lastDonator;
+    public static LastDonation INSTANCE;
+    private LastDonation plugin;
+    private String lastDonator = "";
+    private Persist persist;
+    private Config config;
+    private String currentMOTD = "";
+    private boolean changeVar = true;
 
     @Override
     public void onEnable() {
-        System.out.println();
+        INSTANCE = this;
+        persist = new Persist(Persist.PersistType.YAML, this);
+        config = persist.load(Config.class);
+        currentMOTD = config.MOTD1;
 
-        Utils.createFile();
-        Utils.load();
-
-        getProxy().getPluginManager().registerListener(this, this);
+        getProxy().getPluginManager().registerListener(this, new Listeners());
+        getProxy().getPluginManager().registerCommand(this, new Commands("lastdonation", "lastdonation.admin"));
 
         plugin = this;
 
         System.out.println("Last Donation - Enabled");
 
-        getProxy().getScheduler().schedule(this, new Runnable() {
-            @Override
-            public void run() {
-                System.out.println("Last Dontor updated");
-                try {
-                    URL url = new URL("https://api.craftingstore.net/v7/payments");
-                    HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                    con.setRequestMethod("GET");
-                    con.setRequestProperty("token", "EAn2MRQq6IJbXGEOoUGq3VLGaUZXZg5v6kdQzEE3MEWpPRGmQP");
+        getProxy().getScheduler().schedule(this, () -> {
+            try {
+                URL url = new URL("https://api.craftingstore.net/v7/payments");
+                HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                con.setRequestMethod("GET");
+                con.setRequestProperty("token", config.token);
 
-                    InputStream is = con.getInputStream();
-                    BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-                    StringBuilder response = new StringBuilder();
-                    String line;
+                InputStream is = con.getInputStream();
+                BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+                StringBuilder response = new StringBuilder();
+                String line;
 
-                    while ((line = rd.readLine()) != null) {
-                        response.append(line);
-                        response.append('\r');
-                    }
-                    rd.close();
-
-                    lastDonator = new Gson().fromJson(response.toString(), JsonObject.class).getAsJsonArray("data").get(0).getAsJsonObject().get("inGameName").getAsString();
-
-                } catch (IOException e) {
-                    e.printStackTrace();
+                while ((line = rd.readLine()) != null) {
+                    response.append(line);
+                    response.append('\r');
                 }
+                rd.close();
+
+                lastDonator = new Gson().fromJson(response.toString(), JsonObject.class).getAsJsonArray("data").get(0).getAsJsonObject().get("inGameName").getAsString();
+
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }, 0, 30, TimeUnit.MINUTES);
+
+        getProxy().getScheduler().schedule(this, () -> {
+            if (!changeVar)
+                currentMOTD = config.MOTD1;
+            else
+                currentMOTD = config.MOTD2;
+            changeVar = !changeVar;
+        }, config.changeInterval, config.changeInterval, TimeUnit.SECONDS);
+
 
     }
 
     @Override
     public void onDisable() {
         System.out.println("Last Donation - Disabled");
-    }
-
-    public static String getLastDonator()
-    {
-        return lastDonator;
-    }
-
-    public static String getMotd()
-    {
-        return MOTD;
-    }
-
-    public static void setLoads(String motd)
-    {
-        MOTD = motd;
-    }
-
-
-    @EventHandler
-    public void onProxyPingEvent(ProxyPingEvent event) {
-        ServerPing serverPing = event.getResponse();
-        serverPing.setDescription(Utils.color(String.format(LastDonation.getMotd(), LastDonation.getLastDonator())));
+        persist.save(config);
     }
 }

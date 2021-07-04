@@ -1,10 +1,9 @@
-package me.lightdream.royalsecurity;
+package me.lightdream.lastdonation;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
+import net.md_5.bungee.api.plugin.Plugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +16,7 @@ public class Persist {
 
     private final ObjectMapper objectMapper;
     private final PersistType persistType;
-    private final JavaPlugin javaPlugin;
+    private final Plugin javaPlugin;
 
     /**
      * The default constructor.
@@ -25,7 +24,7 @@ public class Persist {
      * @param persistType The format which should be used for persisting
      * @param javaPlugin  The plugin which persists. Parameter for dependency injection
      */
-    public Persist(PersistType persistType, JavaPlugin javaPlugin) {
+    public Persist(PersistType persistType, Plugin javaPlugin) {
         this.persistType = persistType;
         this.javaPlugin = javaPlugin;
 
@@ -129,7 +128,6 @@ public class Persist {
             objectMapper.writeValue(file, instance);
         } catch (IOException e) {
             javaPlugin.getLogger().severe("Failed to save " + file.toString() + ": " + e.getMessage());
-            Bukkit.getPluginManager().disablePlugin(javaPlugin);
         }
     }
 
@@ -146,7 +144,6 @@ public class Persist {
             return objectMapper.writeValueAsString(instance);
         } catch (IOException e) {
             javaPlugin.getLogger().severe("Failed to save " + instance.toString() + ": " + e.getMessage());
-            Bukkit.getPluginManager().disablePlugin(javaPlugin);
         }
         return "";
     }
@@ -180,7 +177,6 @@ public class Persist {
                 return objectMapper.readValue(file, clazz);
             } catch (IOException e) {
                 javaPlugin.getLogger().severe("Failed to parse " + file + ": " + e.getMessage());
-                Bukkit.getPluginManager().disablePlugin(javaPlugin);
             }
         }
         try {
@@ -203,8 +199,7 @@ public class Persist {
     public <T> T load(Class<T> clazz, String content) {
         try {
             return objectMapper.readValue(content, clazz);
-        } catch (IOException e) {
-            Bukkit.getPluginManager().disablePlugin(javaPlugin);
+        } catch (IOException ignored) {
         }
 
         return null;

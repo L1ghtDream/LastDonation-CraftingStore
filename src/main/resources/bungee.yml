@@ -1,3 +1,7 @@
 name: LastDonation
 version: ${project.version}
+author: LightDream
 main: me.lightdream.lastdonation.LastDonation
+commands:
+  lastdonation:
+    usage: /<command> [args]
